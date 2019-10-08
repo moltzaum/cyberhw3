@@ -8,6 +8,14 @@ from sniffer import sniff
 from sniffer import dissect
 from detector import detect
 
+def foreverify(f):
+    
+    def new_func(*args):
+        while True:
+            f(*args)
+    
+    return new_func
+
 def main():
     
     # Using queues for synchronization and data control
@@ -18,9 +26,9 @@ def main():
     
     print("Port scanner detector initialized")
     print("press [Ctrl+C] to quit")
-    sniffer = Thread(target=sniff, args=(data_queue,)) 
-    dissector = Thread(target=dissect, args=(data_queue, channel))
-    detector = Thread(target=detect, args=(channel,))
+    sniffer = Thread(target = foreverify(sniff), args = (data_queue,)) 
+    dissector = Thread(target = foreverify(dissect), args = (data_queue, channel))
+    detector = Thread(target = foreverify(detect), args = (channel,))
      
     sniffer.daemon = True
     dissector.daemon = True

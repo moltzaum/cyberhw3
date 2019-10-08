@@ -16,50 +16,46 @@ _packets = psocket.get_promiscuous_socket()
 # 
 def sniff(data_queue): 
     
-    while True:
-        
-        ethernet_data, _ = _packets.recvfrom(65536)
-        data_queue.put(ethernet_data)
+    ethernet_data, _ = _packets.recvfrom(65536)
+    data_queue.put(ethernet_data)
 
 def dissect(data_queue, channel):
 
-    while True:
-
-        ethernet_data = data_queue.get()
-        dst_mac, src_mac, protocol, ip_data = ethernet_dissect(ethernet_data)
+    ethernet_data = data_queue.get()
+    dst_mac, src_mac, protocol, ip_data = ethernet_dissect(ethernet_data)
+    
+    if protocol == EthernetProtocol.IPV4:
         
-        if protocol == EthernetProtocol.IPV4:
+        ip_protocol, src_ip, dst_ip, transport_data = ipv4_dissect(ip_data)
+        
+        if ip_protocol == IPProtocol.ICMP:
+            icmp_type, icmp_code = icmp_dissect(transport_data)
+            # do nothing..
+        
+        elif ip_protocol == IPProtocol.TCP:
+            src_port, dst_port, flags = tcp_dissect(transport_data)
             
-            ip_protocol, src_ip, dst_ip, transport_data = ipv4_dissect(ip_data)
+            # port scanners will send the SYN flag
+            # note: I think 0xC2 is valid as well?
+            if flags | 0x02 != flags:
+                return
             
-            if ip_protocol == IPProtocol.ICMP:
-                icmp_type, icmp_code = icmp_dissect(transport_data)
-                # do nothing..
+            table = channel.get()
+            key = (src_ip, dst_ip, dst_port)
+            if key not in table:
+                table[key] = datetime.now()
+            channel.put(table)
             
-            elif ip_protocol == IPProtocol.TCP:
-                src_port, dst_port, flags = tcp_dissect(transport_data)
-                
-                # port scanners will send the SYN flag
-                # note: I think 0xC2 is valid as well?
-                if flags | 0x02 != flags:
-                    continue
-                
-                table = channel.get()
-                key = (src_ip, dst_ip, dst_port)
-                if key not in table:
-                    table[key] = datetime.now()
-                channel.put(table)
-                
-            elif ip_protocol == IPProtocol.UDP:
-                src_port, dst_port = udp_dissect(transport_data)
-                # do nothing..
-                
-                # After we implement a scanner detector for TCP,
-                # we may want to add UDP on top of that. We should
-                # distinguish TCP and UDP ports in the table we
-                # have, and we might need to incorporate logic
-                # taken from ICMP? (I don't think think this is
-                # the case)
+        elif ip_protocol == IPProtocol.UDP:
+            src_port, dst_port = udp_dissect(transport_data)
+            # do nothing..
+            
+            # After we implement a scanner detector for TCP,
+            # we may want to add UDP on top of that. We should
+            # distinguish TCP and UDP ports in the table we
+            # have, and we might need to incorporate logic
+            # taken from ICMP? (I don't think think this is
+            # the case)
 
 class EthernetProtocol():
     IPV4 = 8

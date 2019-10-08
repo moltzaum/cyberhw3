@@ -3,26 +3,24 @@ from datetime import datetime
 _caught_ips = {}
 
 def detect(channel):
-
-    while True:
-         
-        table = channel.get()
+    
+    table = channel.get()
+    
+    # ip -> (sec_count_list, min_count_list, total_count)
+    ip_connections = {}
+    get_counts(table, ip_connections)
+    
+    channel.put(table)
+    
+    avg = lambda lst: sum(lst) / len(lst)
+    
+    for ip, counts in ip_connections.items():
+        seconds, minutes, total_count = counts
+        avg_per_sec = avg(seconds)
+        avg_per_min = avg(minutes)
         
-        # ip -> (sec_count_list, min_count_list, total_count)
-        ip_connections = {}
-        get_counts(table, ip_connections)
-        
-        channel.put(table)
-        
-        avg = lambda lst: sum(lst) / len(lst)
-        
-        for ip, counts in ip_connections.items():
-            seconds, minutes, total_count = counts
-            avg_per_sec = avg(seconds)
-            avg_per_min = avg(minutes)
-            
-            if avg_per_sec > 5 or avg_per_min > 100 or total_count > 300:
-                report_ip(ip, avg_per_sec, avg_per_min, total_count)
+        if avg_per_sec > 5 or avg_per_min > 100 or total_count > 300:
+            report_ip(ip, avg_per_sec, avg_per_min, total_count)
 
 # for each ip in the table, what is the frequency of occurances per second, per minute, and total?
 # mutates the ip_connections dictionary to contain the new count information
