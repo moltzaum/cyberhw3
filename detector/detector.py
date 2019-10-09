@@ -17,7 +17,7 @@ def detect(channel):
         for ip, counts in ip_connections.items():
             seconds, minutes, total_count = counts
             
-            if seconds[0] > 5 or min_fanout[0] > 100 or total_count > 300:
+            if seconds[0] > 5 or minutes[0] > 100 or total_count > 300:
                 report_ip(ip, seconds, minutes, total_count)
 
 # for each ip in the table, what is the frequency of occurances per second, per minute, and total?
@@ -58,9 +58,9 @@ def report_ip(ip, sec_fanout, min_fanout, total_count):
     avg = lambda lst: sum(lst) / len(lst)
 
     reason = ""
-    if sec_fanout > 5:
+    if sec_fanout[0] > 5:
         reason = "avg fan-out per second exceeds 5" 
-    elif min_fanout > 100:
+    elif min_fanout[0] > 100:
         reason = "avg fan-out per minute exceeds 5" 
     elif total_count > 300:
         reason = "number of first-connections in the last 5 minutes exceeds 300" 
@@ -69,7 +69,7 @@ def report_ip(ip, sec_fanout, min_fanout, total_count):
         "port scanner detected on source IP %s\n"
         "avg fan-out per second: %s, avg fan-out per min: %s, fan-out per 5 min: %s\n"
         "reason: %s")
-    print(message % (ip, avg(seconds), avg(minutes), total_count, reason))
+    print(message % (ip, avg(sec_fanout), avg(min_fanout), total_count, reason))
     _caught_ips[ip] = datetime.now()
 
 
